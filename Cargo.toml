@@ -1,0 +1,8 @@
+[package]
+name = "adventofcode-2024"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+advent_tools = {path = "./advent_tools"}
+tokio = { version = "1", features = ["full"] }

@@ -1,10 +1,12 @@
 use std::error::Error;
 use reqwest::header::{COOKIE, HeaderMap, HeaderValue};
 
-pub async fn fetch_data(url: &str, cookie_value: &str) -> Result<Vec<String>, Box<dyn Error>> {
+const COOKIE_VALUE: &str = "";
+
+pub async fn fetch_data(url: &str) -> Result<Vec<String>, Box<dyn Error>> {
     let client = reqwest::Client::new();
     let mut headers = HeaderMap::new();
-    headers.insert(COOKIE, HeaderValue::from_str(cookie_value)?);
+    headers.insert(COOKIE, HeaderValue::from_str(COOKIE_VALUE)?);
 
     let response = client.get(url)
         .headers(headers)

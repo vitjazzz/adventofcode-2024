@@ -6,21 +6,26 @@ use regex::Regex;
 pub async fn execute() -> Result<(), Box<dyn Error>> {
     let url = "https://adventofcode.com/2024/day/3/input";
 
-    let re = Regex::new(r"(mul\((\d{1,3}),(\d{1,3})\))").unwrap();
-    // let re = Regex::new(r"(mul\((\d{1,3}),(\d{1,3})\))|(do\(\))|(don't\(\))").unwrap();
+    let re = Regex::new(r"(mul\((\d{1,3}),(\d{1,3})\))|(do\(\))|(don't\(\))").unwrap();
 
     let data = fetch_data(url).await?;
 
     let mut enabled = true;
-    let tmp: i32 = data
+    let res: i32 = data
         .iter()
         .flat_map(|line| re.captures_iter(line))
-        .map(|caps|
-            caps[2].parse::<i32>().unwrap() * caps[3].parse::<i32>().unwrap()
-        )
+        .map(|caps| {
+            if caps[0].starts_with("do()") {
+                enabled = true;
+            } else if caps[0].starts_with("don't()") {
+                enabled = false;
+            } else if enabled {
+                return caps[2].parse::<i32>().unwrap() * caps[3].parse::<i32>().unwrap()
+            }
+            return 0
+        })
         .sum();
-        // .collect();
-    println!("tmp - {:?}", tmp);
+    println!("res - {:?}", res);
 
     Ok(())
 }

@@ -7,3 +7,4 @@ edition = "2021"
 advent_tools = {path = "./advent_tools"}
 tokio = { version = "1", features = ["full"] }
 regex = "1.11.1"
+itertools = "0.11"

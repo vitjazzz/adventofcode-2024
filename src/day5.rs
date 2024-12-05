@@ -54,19 +54,12 @@ fn is_correct(page: &Vec<i32>, reverted_rules: &HashMap<i32, Vec<i32>>) -> bool 
 
 fn correct(mut page: Vec<i32>, reverted_rules: &HashMap<i32, Vec<i32>>, rules: &HashMap<i32, Vec<i32>>) -> Vec<i32> {
     let mut not_allowed_pages: Vec<i32> = Vec::new();
-    let mut page_clone = page.clone();
     for (i, page_val) in page.iter().enumerate() {
         if not_allowed_pages.contains(page_val) {
             let rule = rules.get(page_val).unwrap();
-            for j in 0..i {
-                let incorrect_page = page.get(j).unwrap();
-                if rule.contains(incorrect_page) {
-                    page_clone.remove(i);
-                    page_clone.insert(i, *incorrect_page);
-                    page_clone.remove(j);
-                    page_clone.insert(j, *page_val);
-                    return correct(page_clone, reverted_rules, rules);
-                }
+            if let Some(j) = find_swap_index(i, &page, rule) {
+                page.swap(i, j);
+                return correct(page, reverted_rules, rules);
             }
         }
         if let Some(reverted_rule) = reverted_rules.get(page_val) {
@@ -74,6 +67,16 @@ fn correct(mut page: Vec<i32>, reverted_rules: &HashMap<i32, Vec<i32>>, rules: &
         }
     }
     return page;
+}
+
+fn find_swap_index(to_index: usize, page: &Vec<i32>, rule: &Vec<i32>) -> Option<usize> {
+    for j in 0..to_index {
+        let incorrect_page = page.get(j).unwrap();
+        if rule.contains(incorrect_page) {
+            return Some(j);
+        }
+    }
+    return None;
 }
 
 fn get_middle_value(page: &Vec<i32>) -> i32 {

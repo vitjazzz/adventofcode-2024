@@ -8,7 +8,6 @@ const RIGHT: u32 = 0b0100;
 const DOWN: u32 = 0b0010;
 const LEFT: u32 = 0b0001;
 
-// const DIRECTIONS: HashMap<u32, (i32, i32)> = build_directions();
 const DIRECTIONS: &[(u32, (i32, i32))] = &[
     (UP, (-1, 0)),
     (RIGHT, (0, 1)),
@@ -16,52 +15,75 @@ const DIRECTIONS: &[(u32, (i32, i32))] = &[
     (LEFT, (0, -1))
 ];
 
+// 1836 - too high
+
 pub async fn execute() -> Result<(), Box<dyn Error>> {
     let url = "https://adventofcode.com/2024/day/6/input";
     let data = fetch_data(url).await?;
-    // let data = test_data();
+    let data = test_data();
 
     let map = get_map(&data);
-    let mut visit_map = build_visit_map(&map);
 
-    for i in 0..map.len() {
-        for j in 0..map[0].len() {
-            if map[i][j] == '^' {
-                move_guard(&map, &mut visit_map, i, j, UP);
-            }
-        }
-    }
+    let mut startin_visit_map = build_visit_map(&map);
+    let (i, j) = find_guard_starting_point(&map).unwrap();
+    let res = move_guard_initial(map, &mut startin_visit_map, i, j, UP);
+    println!("res: {}", res);
 
-    let mut res = 0;
-    for i in 0..map.len() {
-        for j in 0..map[0].len() {
-            if visit_map[i][j] > 0 {
-                res += 1;
-            }
-        }
-    }
-
-    println!("res: {}", res + 1);
 
     Ok(())
 }
 
-fn move_guard(map: &Vec<Vec<char>>, visit_map: &mut Vec<Vec<u32>>, i: usize, j: usize, direction: u32) {
+fn move_guard_initial(map: Vec<Vec<char>>, starting_visit_map: &mut Vec<Vec<u32>>, i: usize, j: usize, direction: u32) -> i32 {
+    starting_visit_map[i][j] = starting_visit_map[i][j] | direction;
+
+    let (next_i, next_j) = get_next_coordinates(i, j, &direction);
+    let next_symbol = map[next_i][next_j];
+
+    if next_symbol == 'E' {
+        return 0;
+    } else if next_symbol == '#' {
+        let new_direction = change_direction(direction);
+        return move_guard_initial(map, starting_visit_map, i, j, new_direction);
+    } else if next_symbol == '^' {
+        return move_guard_initial(map, starting_visit_map, next_i, next_j, direction);
+    } else {
+        let mut map_with_obstruction = map.clone();
+        map_with_obstruction[next_i][next_j] = '0';
+        let mut visit_map = build_visit_map(&map_with_obstruction);
+        let ends_with_loop = move_guard_with_obstruction(&map_with_obstruction, &mut visit_map, i, j, direction);
+        let res = if ends_with_loop { 1 } else { 0 };
+        if ends_with_loop {
+            visualize(&map_with_obstruction, &visit_map);
+        }
+        return res + move_guard_initial(map, starting_visit_map, next_i, next_j, direction);
+    }
+}
+
+fn move_guard_with_obstruction(map: &Vec<Vec<char>>, visit_map: &mut Vec<Vec<u32>>, i: usize, j: usize, direction: u32) -> bool {
+    let (next_i, next_j) = get_next_coordinates(i, j, &direction);
+    let next_symbol = map[next_i][next_j];
+
+    if next_symbol == 'E' {
+        return false;
+    }
+    let next_visit_bitmap = visit_map[next_i][next_j];
+    if next_visit_bitmap & direction > 0 {
+        return true;
+    }
+    visit_map[next_i][next_j] = next_visit_bitmap | direction;
+    if next_symbol == '#' || next_symbol == '0' {
+        let new_direction = change_direction(direction);
+        return  move_guard_with_obstruction(map, visit_map, i, j, new_direction);
+    } else {
+        return move_guard_with_obstruction(map, visit_map, next_i, next_j, direction);
+    }
+}
+
+fn get_next_coordinates(i: usize, j: usize, direction: &u32) -> (usize, usize) {
     let (i_dir, j_dir) = get_direction_change(&direction);
     let next_i = (i as i32 + i_dir) as usize;
     let next_j = (j as i32 + j_dir) as usize;
-
-    let next_symbol = map[next_i][next_j];
-    if next_symbol == 'E' {
-        return;
-    } else if next_symbol == '#' {
-        visit_map[i][j] += 1;
-        let new_direction = change_direction(direction);
-        move_guard(map, visit_map, i, j, new_direction);
-    } else {
-        visit_map[i][j] += 1;
-        move_guard(map, visit_map, next_i, next_j, direction);
-    }
+    (next_i, next_j)
 }
 
 fn change_direction(direction: u32) -> u32 {
@@ -90,6 +112,17 @@ fn build_visit_map(map: &Vec<Vec<char>>) -> Vec<Vec<u32>> {
         .collect()
 }
 
+fn find_guard_starting_point(map: &Vec<Vec<char>>) -> Option<(usize, usize)> {
+    for i in 0..map.len() {
+        for j in 0..map[0].len() {
+            if map[i][j] == '^' {
+                return Some((i, j))
+            }
+        }
+    }
+    None
+}
+
 fn get_direction_change(direction: &u32) -> (i32, i32) {
     DIRECTIONS.iter()
         .filter(|&&entry| entry.0 == *direction)
@@ -99,17 +132,42 @@ fn get_direction_change(direction: &u32) -> (i32, i32) {
 }
 
 fn test_data() -> Vec<String> {
-    r"  ....#.....
-        .........#
-        ..........
-        ..#.......
-        .......#..
-        ..........
-        .#..^.....
-        ........#.
-        #.........
-        ......#..."
+    r"....#.....
+.........#
+..........
+..#.......
+.......#..
+..........
+.#..^.....
+........#.
+#.........
+......#..."
         .lines()
         .map(|s| s.trim().to_string())
         .collect()
+}
+
+fn visualize(map: &Vec<Vec<char>>, visit_map: &Vec<Vec<u32>>) {
+    for i in 0..map.len() {
+        println!();
+        for j in 0..map[0].len() {
+            if map[i][j] == '^' || map[i][j] == '#' || map[i][j] == '0' {
+                print!("{}", map[i][j]);
+            } else if visit_map[i][j] > 0 {
+                let vertical = visit_map[i][j] & UP > 0 || visit_map[i][j] & DOWN > 0;
+                let horizontal = visit_map[i][j] & LEFT > 0 || visit_map[i][j] & RIGHT > 0;
+                if  vertical && horizontal {
+                    print!("+");
+                } else if vertical {
+                    print!("|");
+                } else {
+                    print!("-")
+                }
+            } else {
+                print!("{}", map[i][j]);
+            }
+        }
+    }
+    println!();
+
 }

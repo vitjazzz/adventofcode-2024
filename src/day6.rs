@@ -16,11 +16,12 @@ const DIRECTIONS: &[(u32, (i32, i32))] = &[
 ];
 
 // 1836 - too high
+// 1690 - too high
 
 pub async fn execute() -> Result<(), Box<dyn Error>> {
     let url = "https://adventofcode.com/2024/day/6/input";
     let data = fetch_data(url).await?;
-    let data = test_data();
+    // let data = test_data();
 
     let map = get_map(&data);
 
@@ -34,44 +35,48 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
 }
 
 fn move_guard_initial(map: Vec<Vec<char>>, starting_visit_map: &mut Vec<Vec<u32>>, i: usize, j: usize, direction: u32) -> i32 {
-    starting_visit_map[i][j] = starting_visit_map[i][j] | direction;
-
     let (next_i, next_j) = get_next_coordinates(i, j, &direction);
     let next_symbol = map[next_i][next_j];
 
     if next_symbol == 'E' {
+        starting_visit_map[i][j] = starting_visit_map[i][j] | direction;
         return 0;
     } else if next_symbol == '#' {
+        starting_visit_map[i][j] = starting_visit_map[i][j] | direction;
         let new_direction = change_direction(direction);
         return move_guard_initial(map, starting_visit_map, i, j, new_direction);
     } else if next_symbol == '^' {
+        starting_visit_map[i][j] = starting_visit_map[i][j] | direction;
         return move_guard_initial(map, starting_visit_map, next_i, next_j, direction);
     } else {
-        let mut map_with_obstruction = map.clone();
-        map_with_obstruction[next_i][next_j] = '0';
-        let mut visit_map = build_visit_map(&map_with_obstruction);
-        let ends_with_loop = move_guard_with_obstruction(&map_with_obstruction, &mut visit_map, i, j, direction);
-        let res = if ends_with_loop { 1 } else { 0 };
-        if ends_with_loop {
-            visualize(&map_with_obstruction, &visit_map);
+        if starting_visit_map[next_i][next_j] > 0 {
+            starting_visit_map[i][j] = starting_visit_map[i][j] | direction;
+            return move_guard_initial(map, starting_visit_map, next_i, next_j, direction);
+        } else {
+            let mut map_with_obstruction = map.clone();
+            map_with_obstruction[next_i][next_j] = '0';
+            let mut visit_map = starting_visit_map.clone();
+            let ends_with_loop = move_guard_with_obstruction(&map_with_obstruction, &mut visit_map, i, j, direction);
+            let res = if ends_with_loop { 1 } else { 0 };
+            starting_visit_map[i][j] = starting_visit_map[i][j] | direction;
+            return res + move_guard_initial(map, starting_visit_map, next_i, next_j, direction);
         }
-        return res + move_guard_initial(map, starting_visit_map, next_i, next_j, direction);
     }
 }
 
 fn move_guard_with_obstruction(map: &Vec<Vec<char>>, visit_map: &mut Vec<Vec<u32>>, i: usize, j: usize, direction: u32) -> bool {
+    let current_bitmap = visit_map[i][j];
+    if current_bitmap & direction > 0 {
+        return true;
+    }
+    visit_map[i][j] = current_bitmap | direction;
+
     let (next_i, next_j) = get_next_coordinates(i, j, &direction);
     let next_symbol = map[next_i][next_j];
 
     if next_symbol == 'E' {
         return false;
-    }
-    let next_visit_bitmap = visit_map[next_i][next_j];
-    if next_visit_bitmap & direction > 0 {
-        return true;
-    }
-    visit_map[next_i][next_j] = next_visit_bitmap | direction;
-    if next_symbol == '#' || next_symbol == '0' {
+    } else if next_symbol == '#' || next_symbol == '0' {
         let new_direction = change_direction(direction);
         return  move_guard_with_obstruction(map, visit_map, i, j, new_direction);
     } else {
@@ -145,29 +150,4 @@ fn test_data() -> Vec<String> {
         .lines()
         .map(|s| s.trim().to_string())
         .collect()
-}
-
-fn visualize(map: &Vec<Vec<char>>, visit_map: &Vec<Vec<u32>>) {
-    for i in 0..map.len() {
-        println!();
-        for j in 0..map[0].len() {
-            if map[i][j] == '^' || map[i][j] == '#' || map[i][j] == '0' {
-                print!("{}", map[i][j]);
-            } else if visit_map[i][j] > 0 {
-                let vertical = visit_map[i][j] & UP > 0 || visit_map[i][j] & DOWN > 0;
-                let horizontal = visit_map[i][j] & LEFT > 0 || visit_map[i][j] & RIGHT > 0;
-                if  vertical && horizontal {
-                    print!("+");
-                } else if vertical {
-                    print!("|");
-                } else {
-                    print!("-")
-                }
-            } else {
-                print!("{}", map[i][j]);
-            }
-        }
-    }
-    println!();
-
 }

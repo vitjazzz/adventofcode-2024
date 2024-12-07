@@ -32,6 +32,9 @@ fn is_result_possible(expected_result: i64, current_result: i64, operator: char,
         '|' => (current_result.to_string() + &next_value.to_string()).parse::<i64>().unwrap(),
         _ => -1111111111
     };
+    if current_result > expected_result {
+        return false
+    }
     return is_result_possible(expected_result, current_result, '*', next_values, next_value_index + 1)
         || is_result_possible(expected_result, current_result, '+', next_values, next_value_index + 1)
         || is_result_possible(expected_result, current_result, '|', next_values, next_value_index + 1);

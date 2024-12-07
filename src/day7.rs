@@ -31,7 +31,7 @@ fn is_result_possible(expected_result: i64, current_result: i64, operator: char,
     let current_result = match operator {
         '+' => current_result + next_value,
         '*' => current_result * next_value,
-        '|' => (current_result.to_string() + &next_value.to_string()).parse::<i64>().unwrap(),
+        '|' => format!("{}{}", current_result, next_value).parse::<i64>().unwrap(),
         _ => -1111111111
     };
     if current_result > expected_result {

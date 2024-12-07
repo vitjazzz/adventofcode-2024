@@ -1,6 +1,8 @@
 use std::error::Error;
 use advent_tools::fetch_data;
 use tokio::time::Instant;
+use rayon::prelude::*;
+
 
 pub async fn execute() -> Result<(), Box<dyn Error>> {
     let url = "https://adventofcode.com/2024/day/7/input";
@@ -10,7 +12,7 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
     let start = Instant::now();
     let equations = get_equations(&data);
 
-    let res: i64 = equations.into_iter()
+    let res: i64 = equations.par_iter()
         .filter(|equation| is_result_possible(equation.0, 1, '*', &equation.1, 0))
         .map(|equation| equation.0)
         .sum();

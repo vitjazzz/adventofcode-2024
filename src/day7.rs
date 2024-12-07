@@ -11,7 +11,7 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
     let equations = get_equations(&data);
 
     let res: i64 = equations.into_iter()
-        .filter(|equation| is_result_possible(equation.0, 1, '*', equation.1.clone()))
+        .filter(|equation| is_result_possible(equation.0, 1, '*', &equation.1, 0))
         .map(|equation| equation.0)
         .sum();
 
@@ -21,22 +21,20 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn is_result_possible(expected_result: i64, current_result: i64, operator: char, mut next_values: Vec<i64>) -> bool {
-    if next_values.is_empty() {
+fn is_result_possible(expected_result: i64, current_result: i64, operator: char, next_values: &Vec<i64>, next_value_index: usize) -> bool {
+    if next_value_index == next_values.len() {
         return expected_result == current_result;
     }
-    let next_value = next_values.remove(0);
+    let next_value = next_values[next_value_index];
     let current_result = match operator {
         '+' => current_result + next_value,
         '*' => current_result * next_value,
         '|' => (current_result.to_string() + &next_value.to_string()).parse::<i64>().unwrap(),
         _ => -1111111111
     };
-    let next_values_clone_1 = next_values.clone();
-    let next_values_clone_2 = next_values.clone();
-    return is_result_possible(expected_result, current_result, '*', next_values_clone_1)
-        || is_result_possible(expected_result, current_result, '+', next_values_clone_2)
-        || is_result_possible(expected_result, current_result, '|', next_values);
+    return is_result_possible(expected_result, current_result, '*', next_values, next_value_index + 1)
+        || is_result_possible(expected_result, current_result, '+', next_values, next_value_index + 1)
+        || is_result_possible(expected_result, current_result, '|', next_values, next_value_index + 1);
 }
 
 fn get_equations(data: &Vec<String>) -> Vec<(i64, Vec<i64>)> {

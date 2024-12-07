@@ -1,7 +1,6 @@
-use std::collections::HashMap;
 use std::error::Error;
 use advent_tools::fetch_data;
-use itertools::Itertools;
+use tokio::time::Instant;
 
 const UP: u32 = 0b1000;
 const RIGHT: u32 = 0b0100;
@@ -23,13 +22,15 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
     let data = fetch_data(url).await?;
     // let data = test_data();
 
+    let start = Instant::now();
     let map = get_map(&data);
 
     let mut startin_visit_map = build_visit_map(&map);
     let (i, j) = find_guard_starting_point(&map).unwrap();
     let res = move_guard_initial(map, &mut startin_visit_map, i, j, UP);
-    println!("res: {}", res);
 
+    let duration = start.elapsed();
+    println!("Result: {}, Execution time: {:?}", res, duration);
 
     Ok(())
 }

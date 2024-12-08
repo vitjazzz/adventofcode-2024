@@ -34,20 +34,16 @@ fn find_antinodes(locations: &Vec<(i32, i32)>, map_limit_i: i32, map_limit_j: i3
             let x_delta = point2.1 - point1.1;
             let y_delta = point2.0 - point1.0;
 
-            let mut antinode1_y = point1.0;
-            let mut antinode1_x = point1.1;
-            while antinode1_y >= 0 && antinode1_x >= 0 && antinode1_y < map_limit_i && antinode1_x < map_limit_j {
-                res.push((antinode1_y, antinode1_x));
-                antinode1_y -= y_delta;
-                antinode1_x -= x_delta;
+            let mut antinode1 = point1;
+            while inside_map(antinode1, map_limit_i, map_limit_j) {
+                res.push(antinode1);
+                antinode1 = (antinode1.0 - y_delta, antinode1.1 - x_delta);
             }
 
-            let mut antinode2_y = point2.0;
-            let mut antinode2_x = point2.1;
-            while antinode2_y >= 0 && antinode2_x >= 0 && antinode2_y < map_limit_i && antinode2_x < map_limit_j {
-                res.push((antinode2_y, antinode2_x));
-                antinode2_y += y_delta;
-                antinode2_x += x_delta;
+            let mut antinode2 = point2;
+            while inside_map(antinode2, map_limit_i, map_limit_j) {
+                res.push(antinode2);
+                antinode2 = (antinode2.0 + y_delta, antinode2.1 + x_delta);
             }
         }
     }

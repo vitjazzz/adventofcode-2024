@@ -31,22 +31,31 @@ fn find_antinodes(locations: &Vec<(i32, i32)>, map_limit_i: i32, map_limit_j: i3
         for j in i+1..locations.len() {
             let point1 = locations[i];
             let point2 = locations[j];
-            let x_delta = point2.1 - point1.1;
-            let y_delta = point2.0 - point1.0;
 
-            let mut antinode1 = point1;
-            while inside_map(antinode1, map_limit_i, map_limit_j) {
-                res.push(antinode1);
-                antinode1 = (antinode1.0 - y_delta, antinode1.1 - x_delta);
-            }
-
-            let mut antinode2 = point2;
-            while inside_map(antinode2, map_limit_i, map_limit_j) {
-                res.push(antinode2);
-                antinode2 = (antinode2.0 + y_delta, antinode2.1 + x_delta);
-            }
+            res.extend(find_antinodes_for_2_points(point1, point2, map_limit_i, map_limit_j));
         }
     }
+    res
+}
+
+fn find_antinodes_for_2_points(point1: (i32, i32), point2: (i32, i32), map_limit_i: i32, map_limit_j: i32) -> Vec<(i32, i32)> {
+    let mut res: Vec<(i32, i32)> = Vec::new();
+
+    let x_delta = point2.1 - point1.1;
+    let y_delta = point2.0 - point1.0;
+
+    let mut antinode1 = point1;
+    while inside_map(antinode1, map_limit_i, map_limit_j) {
+        res.push(antinode1);
+        antinode1 = (antinode1.0 - y_delta, antinode1.1 - x_delta);
+    }
+
+    let mut antinode2 = point2;
+    while inside_map(antinode2, map_limit_i, map_limit_j) {
+        res.push(antinode2);
+        antinode2 = (antinode2.0 + y_delta, antinode2.1 + x_delta);
+    }
+
     res
 }
 

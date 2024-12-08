@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use advent_tools::fetch_data;
 use tokio::time::Instant;
@@ -8,25 +8,26 @@ use rayon::prelude::*;
 pub async fn execute() -> Result<(), Box<dyn Error>> {
     let url = "https://adventofcode.com/2024/day/8/input";
     let data = fetch_data(url).await?;
-    let data = test_data();
+    // let data = test_data();
 
     let start = Instant::now();
     let map = get_map(&data);
     let locations = get_locations(&map);
 
-    let antinodes_count: i32 = locations.into_iter()
+    let antinodes: HashSet<(i32, i32)> = locations.into_iter()
         .map(|locations_entry|locations_entry.1)
-        .map(|locations_points| find_antinodes(&locations_points, map.len() as i32, map[0].len() as i32))
-        .sum();
+        .flat_map(|locations_points| find_antinodes(&locations_points, map.len() as i32, map[0].len() as i32))
+        .collect();
 
+    // print_map(&map, &antinodes);
     let duration = start.elapsed();
-    println!("Result: {}, Execution time: {:?}", antinodes_count, duration);
+    println!("Result: {}, Execution time: {:?}", antinodes.len(), duration);
 
     Ok(())
 }
 
-fn find_antinodes(locations: &Vec<(i32, i32)>, map_limit_i: i32, map_limit_j: i32) -> i32 {
-    let mut res = 0;
+fn find_antinodes(locations: &Vec<(i32, i32)>, map_limit_i: i32, map_limit_j: i32) -> Vec<(i32, i32)> {
+    let mut res: Vec<(i32, i32)> = Vec::new();
     for i in 0..locations.len() {
         for j in i+1..locations.len() {
             let point1 = locations[i];
@@ -36,10 +37,10 @@ fn find_antinodes(locations: &Vec<(i32, i32)>, map_limit_i: i32, map_limit_j: i3
             let antinode1 = (point1.0 - y_delta, point1.1 - x_delta);
             let antinode2 = (point2.0 + y_delta, point2.1 + x_delta);
             if inside_map(antinode1, map_limit_i, map_limit_j) {
-                res += 1;
+                res.push(antinode1);
             }
             if inside_map(antinode2, map_limit_i, map_limit_j) {
-                res += 1;
+                res.push(antinode2);
             }
         }
     }
@@ -87,4 +88,25 @@ fn test_data() -> Vec<String> {
         .lines()
         .map(|s| s.trim().to_string())
         .collect()
+}
+
+fn print_map(map: &Vec<Vec<char>>, antinodes: &HashSet<(i32, i32)>) {
+    println!();
+    for i in 0..map.len() {
+        println!();
+        for j in 0..map[0].len() {
+            let mut x = 0;
+            if antinodes.contains(&(i as i32, j as i32)) && map[i][j] != '.' {
+                x += 1;
+            }
+            if map[i][j] != '.' {
+                print!("{}", map[i][j]);
+            } else if antinodes.contains(&(i as i32, j as i32)) {
+                print!("#");
+            } else {
+                print!(".");
+            }
+        }
+    }
+    println!();
 }

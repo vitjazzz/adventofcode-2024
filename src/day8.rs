@@ -1,0 +1,90 @@
+use std::collections::HashMap;
+use std::error::Error;
+use advent_tools::fetch_data;
+use tokio::time::Instant;
+use rayon::prelude::*;
+
+
+pub async fn execute() -> Result<(), Box<dyn Error>> {
+    let url = "https://adventofcode.com/2024/day/8/input";
+    let data = fetch_data(url).await?;
+    let data = test_data();
+
+    let start = Instant::now();
+    let map = get_map(&data);
+    let locations = get_locations(&map);
+
+    let antinodes_count: i32 = locations.into_iter()
+        .map(|locations_entry|locations_entry.1)
+        .map(|locations_points| find_antinodes(&locations_points, map.len() as i32, map[0].len() as i32))
+        .sum();
+
+    let duration = start.elapsed();
+    println!("Result: {}, Execution time: {:?}", antinodes_count, duration);
+
+    Ok(())
+}
+
+fn find_antinodes(locations: &Vec<(i32, i32)>, map_limit_i: i32, map_limit_j: i32) -> i32 {
+    let mut res = 0;
+    for i in 0..locations.len() {
+        for j in i+1..locations.len() {
+            let point1 = locations[i];
+            let point2 = locations[j];
+            let x_delta = point2.1 - point1.1;
+            let y_delta = point2.0 - point1.0;
+            let antinode1 = (point1.0 - y_delta, point1.1 - x_delta);
+            let antinode2 = (point2.0 + y_delta, point2.1 + x_delta);
+            if inside_map(antinode1, map_limit_i, map_limit_j) {
+                res += 1;
+            }
+            if inside_map(antinode2, map_limit_i, map_limit_j) {
+                res += 1;
+            }
+        }
+    }
+    res
+}
+
+fn inside_map(point: (i32, i32), map_limit_i: i32, map_limit_j: i32) -> bool {
+    point.0 >= 0 && point.1 >= 0 && point.0 < map_limit_i && point.1 < map_limit_j
+}
+
+fn get_map(data: &Vec<String>) -> Vec<Vec<char>> {
+    data.iter()
+        .map(|s| s.chars().collect())
+        .collect()
+}
+
+fn get_locations(map: &Vec<Vec<char>>) -> HashMap<char, Vec<(i32, i32)>> {
+    let mut res: HashMap<char, Vec<(i32, i32)>> = HashMap::new();
+    for i in 0..map.len() {
+        for j in 0..map[0].len() {
+            let c = map[i][j];
+            if c != '.' {
+                res.entry(c)
+                    .or_insert_with(Vec::new)
+                    .push((i as i32, j as i32));
+            }
+        }
+    }
+    res
+}
+
+fn test_data() -> Vec<String> {
+    r"  ............
+        ........0...
+        .....0......
+        .......0....
+        ....0.......
+        ......A.....
+        ............
+        ............
+        ........A...
+        .........A..
+        ............
+        ............"
+        .lines()
+        .map(|s| s.trim().to_string())
+        .collect()
+}

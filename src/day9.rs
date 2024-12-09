@@ -30,19 +30,15 @@ fn move_and_calculate_checksum(mut disk_fragments: Vec<DiskFragment>) -> i64 {
     while i <= j {
         let mut left = &mut disk_fragments[i];
         let used_space = right_disk_fragments[i].total_space - right_disk_fragments[i].free_space;
-        checksum += left.id * used_space * (2 * index + used_space - 1) / 2;
+        checksum += calculate_current_checksum(index, left.id, used_space);
         index += used_space;
         while left.free_space != 0 && i < j  {
             let mut right = &mut right_disk_fragments[j];
-            if right.free_space == right.total_space {
-                j -= 1;
-                continue
-            }
-            let fragments_to_move = min(right.total_space - right.free_space, left.free_space);
-            right.free_space += fragments_to_move;
-            left.free_space -= fragments_to_move;
-            checksum += right.id * fragments_to_move * (2 * index + fragments_to_move - 1) / 2;
-            index += fragments_to_move;
+            let used_space_to_move = min(right.total_space - right.free_space, left.free_space);
+            right.free_space += used_space_to_move;
+            left.free_space -= used_space_to_move;
+            checksum += calculate_current_checksum(index, right.id, used_space_to_move);
+            index += used_space_to_move;
             if right.free_space == right.total_space {
                 j -= 1;
                 continue
@@ -51,6 +47,10 @@ fn move_and_calculate_checksum(mut disk_fragments: Vec<DiskFragment>) -> i64 {
         i += 1;
     }
     checksum
+}
+
+fn calculate_current_checksum(index: i64, id: i64, used_space: i64) -> i64 {
+    id * used_space * (2 * index + used_space - 1) / 2
 }
 
 fn get_disk_fragments(s: &String) -> Vec<DiskFragment> {

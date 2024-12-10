@@ -44,7 +44,7 @@ fn calculate_score(prev_value: i32, i: usize, j: usize, map: &Vec<Vec<i32>>, sco
         .chain(calculate_score(current_val, i, j + 1, map, score_map))
         .chain(calculate_score(current_val, i + 1, j, map, score_map))
         .chain(calculate_score(current_val, i, j - 1, map, score_map))
-        .collect::<HashSet<_>>()
+        // .collect::<HashSet<_>>()
         .into_iter()
         .collect();
     score_map[i][j] = score.clone();

@@ -22,28 +22,33 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
 }
 
 fn move_and_calculate_checksum(mut disk_fragments: Vec<DiskFragment>) -> i64 {
+    let fragments_count = disk_fragments.len();
     let mut right_disk_fragments = disk_fragments.clone();
     let mut i = 0;
-    let mut j = disk_fragments.len() - 1;
     let mut checksum = 0;
     let mut index = 0;
-    while i <= j {
+    while i < fragments_count {
+        let used_space = disk_fragments[i].total_space - disk_fragments[i].free_space;
         let mut left = &mut disk_fragments[i];
-        let used_space = right_disk_fragments[i].total_space - right_disk_fragments[i].free_space;
-        checksum += calculate_current_checksum(index, left.id, used_space);
+        if right_disk_fragments[i].total_space != right_disk_fragments[i].free_space {
+            checksum += calculate_current_checksum(index, left.id, used_space);
+        }
         index += used_space;
+        let mut j = fragments_count - 1;
         while left.free_space != 0 && i < j  {
             let mut right = &mut right_disk_fragments[j];
-            let used_space_to_move = min(right.total_space - right.free_space, left.free_space);
+            let right_used_space = right.total_space - right.free_space;
+            let used_space_to_move = if right_used_space <= left.free_space { right_used_space } else { 0 };
+            j -= 1;
+            if used_space_to_move == 0 {
+                continue
+            }
             right.free_space += used_space_to_move;
             left.free_space -= used_space_to_move;
             checksum += calculate_current_checksum(index, right.id, used_space_to_move);
             index += used_space_to_move;
-            if right.free_space == right.total_space {
-                j -= 1;
-                continue
-            }
         }
+        index += left.free_space;
         i += 1;
     }
     checksum

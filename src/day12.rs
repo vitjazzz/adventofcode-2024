@@ -62,16 +62,20 @@ fn calculate_area_and_perimeter(region_map: &HashMap<(usize, usize), (usize, usi
         let area = points.len() as i32;
         let points_clone = points.clone();
         for point in points_clone {
-            if !points.contains(&(point.0 - 1, point.1)) {
+            if !points.contains(&(point.0 - 1, point.1))
+                && (!points.contains(&(point.0, point.1 - 1)) || points.contains(&(point.0 - 1, point.1 - 1))) {
                 perimeter += 1;
             }
-            if !points.contains(&(point.0 + 1, point.1)) {
+            if !points.contains(&(point.0 + 1, point.1))
+                && (!points.contains(&(point.0, point.1 + 1)) || points.contains(&(point.0 + 1, point.1 + 1))) {
                 perimeter += 1;
             }
-            if !points.contains(&(point.0, point.1 - 1)) {
+            if !points.contains(&(point.0, point.1 - 1))
+                && (!points.contains(&(point.0 + 1, point.1)) || points.contains(&(point.0 + 1, point.1 - 1))) {
                 perimeter += 1;
             }
-            if !points.contains(&(point.0, point.1 + 1)) {
+            if !points.contains(&(point.0, point.1 + 1))
+                && (!points.contains(&(point.0 - 1, point.1)) || points.contains(&(point.0 - 1, point.1 + 1))) {
                 perimeter += 1;
             }
         }

@@ -1,6 +1,6 @@
-mod day11;
+mod day12;
 
 #[tokio::main]
 async fn main() {
-    day11::execute().await.unwrap();
+    day12::execute().await.unwrap();
 }

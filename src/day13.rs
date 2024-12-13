@@ -1,4 +1,3 @@
-use std::cmp::min;
 use std::error::Error;
 use advent_tools::fetch_data;
 use tokio::time::Instant;
@@ -14,7 +13,13 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
     let claw_machines = get_claw_machines(&data);
 
     let res: i64 = claw_machines.iter()
-        .filter_map(|claw_machine| calculate_min_tokens(claw_machine))
+        .filter_map(|claw_machine| {
+            let some = calculate_min_tokens(claw_machine);
+            if some.is_some() {
+                println!("Claw Machine {:?} is achievable", claw_machine);
+            }
+            some
+        })
         .sum();
 
     let duration = start.elapsed();
@@ -24,23 +29,29 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
 }
 
 fn calculate_min_tokens(claw_machine: &ClawMachine) -> Option<i64> {
-    let expected_iterations = min(claw_machine.prize_location.0 / claw_machine.button_a.0, claw_machine.prize_location.1 / claw_machine.button_a.1);
-    let mut min_tokens = i64::MAX;
-    let mut current_iteration: i64 = 0;
-    let mut remainders: Vec<(i64, i64)> = Vec::new();
-    for a in 0..MAX_TIMES {
+    let mut a: i64 = 0;
+    let mut iterations = 0;
+    while a < MAX_TIMES {
         let starting_point = calculate_location(claw_machine.button_a, a, (0, 0), 0);
         if starting_point.0 > claw_machine.prize_location.0 || starting_point.1 > claw_machine.prize_location.1 {
             break
         }
-        if let Some(b) = calculate_delta_times(starting_point, claw_machine.prize_location, claw_machine.button_b) {
-            if min_tokens > b + a * 3 {
-                min_tokens = b + a * 3;
-            }
+        let ((x_times, y_times), remainder) = calculate_times_and_remainder(starting_point, claw_machine.prize_location, claw_machine.button_b);
+        if remainder == (0, 0) && x_times == y_times {
+            return Some(x_times + a * 3);
         }
-        current_iteration += 1;
+        if (x_times - y_times).abs() > 1_000_000 {
+            a += 1_000;
+        } else if (x_times - y_times).abs() > 100_000 {
+            a += 100;
+        } else if (x_times - y_times).abs() > 10_000 {
+            a += 10;
+        } else {
+            a += 1;
+        }
+        iterations += 1;
     }
-    if min_tokens == i64::MAX { None } else { Some(min_tokens) }
+    None
 }
 
 fn calculate_location(button_a: (i64, i64), a_times: i64, button_b: (i64, i64), b_times: i64) -> (i64, i64) {
@@ -49,16 +60,14 @@ fn calculate_location(button_a: (i64, i64), a_times: i64, button_b: (i64, i64), 
     (x, y)
 }
 
-fn calculate_delta_times(starting_point: (i64, i64), final_point: (i64, i64), delta: (i64, i64)) -> Option<i64> {
+fn calculate_times_and_remainder(starting_point: (i64, i64), final_point: (i64, i64), delta: (i64, i64)) -> ((i64, i64), (i64, i64)) {
     let x_delta_target = final_point.0 - starting_point.0;
     let y_delta_target = final_point.1 - starting_point.1;
 
-    if x_delta_target % delta.0 == 0 && y_delta_target % delta.1 == 0
-        && x_delta_target / delta.0 == y_delta_target / delta.1 {
-        Some(x_delta_target / delta.0)
-    } else {
-        None
-    }
+    let times = (x_delta_target / delta.0, y_delta_target / delta.1);
+    let reminder = (x_delta_target % delta.0, y_delta_target % delta.1);
+
+    (times, reminder)
 }
 
 fn get_claw_machines(data: &Vec<String>) -> Vec<ClawMachine> {
@@ -98,24 +107,24 @@ fn get_prize(line: &String) -> (i64, i64) {
 }
 
 fn test_data() -> Vec<String> {
-    // r"  Button A: X+94, Y+34
-    //     Button B: X+22, Y+67
-    //     Prize: X=8400, Y=5400
-    //
-    //     Button A: X+26, Y+66
-    //     Button B: X+67, Y+21
-    //     Prize: X=12748, Y=12176
-    //
-    //     Button A: X+17, Y+86
-    //     Button B: X+84, Y+37
-    //     Prize: X=7870, Y=6450
-    //
-    //     Button A: X+69, Y+23
-    //     Button B: X+27, Y+71
-    //     Prize: X=18641, Y=10279"
-    r"  Button A: X+26, Y+66
+    r"  Button A: X+94, Y+34
+        Button B: X+22, Y+67
+        Prize: X=8400, Y=5400
+
+        Button A: X+26, Y+66
         Button B: X+67, Y+21
-        Prize: X=12748, Y=12176"
+        Prize: X=12748, Y=12176
+
+        Button A: X+17, Y+86
+        Button B: X+84, Y+37
+        Prize: X=7870, Y=6450
+
+        Button A: X+69, Y+23
+        Button B: X+27, Y+71
+        Prize: X=18641, Y=10279"
+    // r"  Button A: X+26, Y+66
+    //     Button B: X+67, Y+21
+    //     Prize: X=12748, Y=12176"
         .lines()
         .map(|s| s.trim().to_string())
         .collect()

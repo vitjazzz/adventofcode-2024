@@ -1,18 +1,19 @@
 use std::error::Error;
 use advent_tools::fetch_data;
 use tokio::time::Instant;
+use rayon::prelude::*;
 
 const MAX_TIMES: i64 = i64::MAX;
 
 pub async fn execute() -> Result<(), Box<dyn Error>> {
     let url = "https://adventofcode.com/2024/day/13/input";
     let data = fetch_data(url).await?;
-    let data = test_data();
+    // let data = test_data();
 
     let start = Instant::now();
     let claw_machines = get_claw_machines(&data);
 
-    let res: i64 = claw_machines.iter()
+    let res: i64 = claw_machines.par_iter()
         .filter_map(|claw_machine| {
             let some = calculate_min_tokens(claw_machine);
             if some.is_some() {
@@ -30,7 +31,6 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
 
 fn calculate_min_tokens(claw_machine: &ClawMachine) -> Option<i64> {
     let mut a: i64 = 0;
-    let mut iterations = 0;
     while a < MAX_TIMES {
         let starting_point = calculate_location(claw_machine.button_a, a, (0, 0), 0);
         if starting_point.0 > claw_machine.prize_location.0 || starting_point.1 > claw_machine.prize_location.1 {
@@ -40,16 +40,19 @@ fn calculate_min_tokens(claw_machine: &ClawMachine) -> Option<i64> {
         if remainder == (0, 0) && x_times == y_times {
             return Some(x_times + a * 3);
         }
-        if (x_times - y_times).abs() > 1_000_000 {
-            a += 1_000;
+        if (x_times - y_times).abs() > 10_000_000 {
+            a += 100_000;
+        } else if (x_times - y_times).abs() > 1_000_000 {
+            a += 10_000;
         } else if (x_times - y_times).abs() > 100_000 {
-            a += 100;
+            a += 1000;
         } else if (x_times - y_times).abs() > 10_000 {
+            a += 100;
+        } else if (x_times - y_times).abs() > 1_000 {
             a += 10;
         } else {
             a += 1;
         }
-        iterations += 1;
     }
     None
 }

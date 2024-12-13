@@ -1,3 +1,4 @@
+use std::cmp::max;
 use std::error::Error;
 use advent_tools::fetch_data;
 use tokio::time::Instant;
@@ -40,19 +41,7 @@ fn calculate_min_tokens(claw_machine: &ClawMachine) -> Option<i64> {
         if remainder == (0, 0) && x_times == y_times {
             return Some(x_times + a * 3);
         }
-        if (x_times - y_times).abs() > 10_000_000 {
-            a += 100_000;
-        } else if (x_times - y_times).abs() > 1_000_000 {
-            a += 10_000;
-        } else if (x_times - y_times).abs() > 100_000 {
-            a += 1000;
-        } else if (x_times - y_times).abs() > 10_000 {
-            a += 100;
-        } else if (x_times - y_times).abs() > 1_000 {
-            a += 10;
-        } else {
-            a += 1;
-        }
+        a += max(1, (x_times - y_times).abs() / 10);
     }
     None
 }

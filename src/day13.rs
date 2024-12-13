@@ -1,8 +1,9 @@
+use std::cmp::min;
 use std::error::Error;
 use advent_tools::fetch_data;
 use tokio::time::Instant;
 
-const MAX_TIMES: i64 = 100;
+const MAX_TIMES: i64 = i64::MAX;
 
 pub async fn execute() -> Result<(), Box<dyn Error>> {
     let url = "https://adventofcode.com/2024/day/13/input";
@@ -23,21 +24,21 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
 }
 
 fn calculate_min_tokens(claw_machine: &ClawMachine) -> Option<i64> {
+    let expected_iterations = min(claw_machine.prize_location.0 / claw_machine.button_a.0, claw_machine.prize_location.1 / claw_machine.button_a.1);
     let mut min_tokens = i64::MAX;
+    let mut current_iteration: i64 = 0;
+    let mut remainders: Vec<(i64, i64)> = Vec::new();
     for a in 0..MAX_TIMES {
-        let new_location = calculate_location(claw_machine.button_a, a, claw_machine.button_b, 0);
-        if new_location.0 > claw_machine.prize_location.0 || new_location.1 > claw_machine.prize_location.1 {
+        let starting_point = calculate_location(claw_machine.button_a, a, (0, 0), 0);
+        if starting_point.0 > claw_machine.prize_location.0 || starting_point.1 > claw_machine.prize_location.1 {
             break
         }
-        for b in 0..MAX_TIMES {
-            let new_location = calculate_location(claw_machine.button_a, a, claw_machine.button_b, b);
-            if new_location.0 > claw_machine.prize_location.0 || new_location.1 > claw_machine.prize_location.1 {
-                break
-            }
-            if new_location == claw_machine.prize_location && min_tokens > b + a * 3 {
+        if let Some(b) = calculate_delta_times(starting_point, claw_machine.prize_location, claw_machine.button_b) {
+            if min_tokens > b + a * 3 {
                 min_tokens = b + a * 3;
             }
         }
+        current_iteration += 1;
     }
     if min_tokens == i64::MAX { None } else { Some(min_tokens) }
 }
@@ -46,6 +47,18 @@ fn calculate_location(button_a: (i64, i64), a_times: i64, button_b: (i64, i64), 
     let x = button_a.0 * a_times + button_b.0 * b_times;
     let y = button_a.1 * a_times + button_b.1 * b_times;
     (x, y)
+}
+
+fn calculate_delta_times(starting_point: (i64, i64), final_point: (i64, i64), delta: (i64, i64)) -> Option<i64> {
+    let x_delta_target = final_point.0 - starting_point.0;
+    let y_delta_target = final_point.1 - starting_point.1;
+
+    if x_delta_target % delta.0 == 0 && y_delta_target % delta.1 == 0
+        && x_delta_target / delta.0 == y_delta_target / delta.1 {
+        Some(x_delta_target / delta.0)
+    } else {
+        None
+    }
 }
 
 fn get_claw_machines(data: &Vec<String>) -> Vec<ClawMachine> {
@@ -81,25 +94,28 @@ fn get_prize(line: &String) -> (i64, i64) {
         .split(", ")
         .map(|s| s.split("=").nth(1).unwrap().parse::<i64>().unwrap())
         .collect();
-    (button_vec[0], button_vec[1])
+    (button_vec[0] + 10000000000000, button_vec[1] + 10000000000000)
 }
 
 fn test_data() -> Vec<String> {
-    r"  Button A: X+94, Y+34
-        Button B: X+22, Y+67
-        Prize: X=8400, Y=5400
-
-        Button A: X+26, Y+66
+    // r"  Button A: X+94, Y+34
+    //     Button B: X+22, Y+67
+    //     Prize: X=8400, Y=5400
+    //
+    //     Button A: X+26, Y+66
+    //     Button B: X+67, Y+21
+    //     Prize: X=12748, Y=12176
+    //
+    //     Button A: X+17, Y+86
+    //     Button B: X+84, Y+37
+    //     Prize: X=7870, Y=6450
+    //
+    //     Button A: X+69, Y+23
+    //     Button B: X+27, Y+71
+    //     Prize: X=18641, Y=10279"
+    r"  Button A: X+26, Y+66
         Button B: X+67, Y+21
-        Prize: X=12748, Y=12176
-
-        Button A: X+17, Y+86
-        Button B: X+84, Y+37
-        Prize: X=7870, Y=6450
-
-        Button A: X+69, Y+23
-        Button B: X+27, Y+71
-        Prize: X=18641, Y=10279"
+        Prize: X=12748, Y=12176"
         .lines()
         .map(|s| s.trim().to_string())
         .collect()

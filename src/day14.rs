@@ -3,8 +3,9 @@ use advent_tools::fetch_data;
 use tokio::time::Instant;
 use regex::Regex;
 
+const START: i32 = 6300;
 // const SECONDS: i32 = 5;
-const SECONDS: i32 = 100;
+const SECONDS: i32 = 6700;
 // const WIDTH: i32 = 11;
 // const HEIGHT: i32 = 7;
 const WIDTH: i32 = 101;
@@ -16,20 +17,22 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
 
     let start = Instant::now();
     let robots = get_robots(&data);
-    let robot_final_positions: Vec<(i32, i32)> = robots.iter()
-        .map(|robot| calculate_position(robot, SECONDS))
-        .collect();
-
-    print_robots(&robot_final_positions);
-    let score = calculate_score(&robot_final_positions);
+    (START..SECONDS).into_iter()
+        .for_each(|i| {
+            let robot_final_positions: Vec<(i32, i32)> = robots.iter()
+                .map(|robot| calculate_position(robot, i))
+                .collect();
+            println!("{i}");
+            print_robots(&robot_final_positions);
+        });
 
     let duration = start.elapsed();
-    println!("Result: {}, Execution time: {:?}", score, duration);
+    println!("Result: {}, Execution time: {:?}", 0, duration);
 
     Ok(())
 }
 
-fn calculate_score(robot_positions: &Vec<(i32, i32)>) -> i32 {
+fn calculate_scores(robot_positions: &Vec<(i32, i32)>) -> (i32, i32, i32, i32) {
     let mut left_top = 0;
     let mut right_top = 0;
     let mut left_bot = 0;
@@ -45,7 +48,7 @@ fn calculate_score(robot_positions: &Vec<(i32, i32)>) -> i32 {
             right_bot += 1;
         }
     }
-    left_top * right_top * left_bot * right_bot
+    (left_top, right_top, left_bot, right_bot)
 }
 
 fn calculate_position(robot: &Robot, seconds: i32) -> (i32, i32){
@@ -105,11 +108,10 @@ fn print_robots(robot_positions: &Vec<(i32, i32)>) {
     for i in 0..HEIGHT {
         println!();
         for j in 0..WIDTH {
-            let robots = robot_positions.iter().filter(|&position| position == &(j, i)).count();
-            if robots == 0 {
+            if !robot_positions.contains(&(j, i)) {
                 print!(".");
             } else {
-                print!("{robots}");
+                print!("X");
             }
         }
     }

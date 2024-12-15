@@ -14,7 +14,7 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
     let mut robot_position = get_robot_position(&map);
 
     for movement in movements {
-        robot_position = try_move(robot_position, movement, &mut map);
+        (robot_position, map) = try_move(robot_position, movement, map);
     }
 
     print_map(&map);
@@ -26,10 +26,10 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn try_move(position: (usize, usize), movement: char, map: &mut Vec<Vec<char>>) -> (usize, usize) {
+fn try_move(position: (usize, usize), movement: char, map: Vec<Vec<char>>) -> ((usize, usize), Vec<Vec<char>>) {
     let current_element = map[position.0][position.1];
     if current_element == '#' || current_element == '.' {
-        return position;
+        return (position, map);
     }
     let expected_position = match movement {
         '^' => (position.0 - 1, position.1),
@@ -38,22 +38,35 @@ fn try_move(position: (usize, usize), movement: char, map: &mut Vec<Vec<char>>) 
         '<' => (position.0, position.1 - 1),
         _ => (position.0, position.1)
     };
-    try_move(expected_position, movement, map);
-    let current_element = map[position.0][position.1];
-    if map[expected_position.0][expected_position.1] == '.' {
-        map[expected_position.0][expected_position.1] = current_element;
-        map[position.0][position.1] = '.';
-        expected_position
-    } else {
-        position
+    let new_map = map.clone();
+    let (_, mut new_map) = try_move(expected_position, movement, new_map);
+    if new_map[expected_position.0][expected_position.1] == '.' {
+        new_map[expected_position.0][expected_position.1] = current_element;
+        new_map[position.0][position.1] = '.';
+        if (movement == '^' || movement == 'v') && current_element == '[' {
+            let right_position = (position.0, position.1 + 1);
+            let (_, new_map) = try_move(right_position, movement, new_map);
+            if new_map[right_position.0][right_position.1] == '.' {
+                return (expected_position, new_map)
+            }
+        } else if (movement == '^' || movement == 'v') && current_element == ']' {
+            let left_position = (position.0, position.1 - 1);
+            let (_, new_map) = try_move(left_position, movement, new_map);
+            if new_map[left_position.0][left_position.1] == '.' {
+                return (expected_position, new_map)
+            }
+        } else {
+            return (expected_position, new_map);
+        }
     }
+    return (position, map);
 }
 
 fn calculate_score(map: &Vec<Vec<char>>) -> i32 {
     let mut res = 0;
     for i in 0..map.len() {
         for j in 0..map[0].len() {
-            if map[i][j] == 'O' {
+            if map[i][j] == '[' {
                 res += (i * 100 + j) as i32;
             }
         }
@@ -73,10 +86,27 @@ fn get_robot_position(map: &Vec<Vec<char>>) -> (usize, usize) {
 }
 
 fn get_map(data: &Vec<String>) -> Vec<Vec<char>> {
-    data.iter()
+    let original_map: Vec<Vec<char>> = data.iter()
         .filter(|s| s.contains('#'))
         .map(|s| s.chars().collect::<Vec<char>>())
-        .collect()
+        .collect();
+    let mut res: Vec<Vec<char>> = Vec::new();
+    for i in 0..original_map.len() {
+        res.push(Vec::new());
+        for j in 0..original_map[0].len() {
+            if original_map[i][j] == '@' {
+                res[i].push('@');
+                res[i].push('.');
+            } else if original_map[i][j] == 'O' {
+                res[i].push('[');
+                res[i].push(']');
+            } else {
+                res[i].push(original_map[i][j]);
+                res[i].push(original_map[i][j]);
+            }
+        }
+    }
+    res
 }
 
 fn get_movements(data: &Vec<String>) -> Vec<char> {
@@ -87,16 +117,15 @@ fn get_movements(data: &Vec<String>) -> Vec<char> {
 }
 
 fn test_data() -> Vec<String> {
-    // r"  ########
-    //     #..O.O.#
-    //     ##@.O..#
-    //     #...O..#
-    //     #.#.O..#
-    //     #...O..#
-    //     #......#
-    //     ########
+    // r"  #######
+    //     #...#.#
+    //     #.....#
+    //     #..OO@#
+    //     #..O..#
+    //     #.....#
+    //     #######
     //
-    //     <^^>>>vv<v>>v<<"
+    //     <vv<<^^<<^^"
         r"  ##########
             #..O..O.O#
             #......O.#

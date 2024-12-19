@@ -4,9 +4,7 @@ use std::iter::Map;
 use advent_tools::fetch_data;
 use tokio::time::Instant;
 
-// const BYTES: usize = 12;
 // const SIZE: usize = 6;
-const BYTES: usize = 1024;
 const SIZE: usize = 70;
 
 // 2147483647 is too high
@@ -16,14 +14,15 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
     // let data = test_data();
 
     let start = Instant::now();
-    let mut map = get_map(&data);
-    corrupt_map(&mut map, &data);
-
-    let res = find_shortest_path(&map);
-
-    let duration = start.elapsed();
-    println!("Result: {}, Execution time: {:?}", res, duration);
-
+    for i in 0..data.len() {
+        let mut map = get_map(&data);
+        corrupt_map(&mut map, &data, i);
+        let res = find_shortest_path(&map);
+        if res == i32::MAX {
+            println!("Result: {}, Execution time: {:?}", data[i-1], start.elapsed());
+            break;
+        }
+    }
     Ok(())
 }
 
@@ -51,8 +50,8 @@ fn find_shortest_path(map: &Vec<Vec<char>>) -> i32 {
     scores_map[SIZE+1][SIZE+1]
 }
 
-fn corrupt_map(map: &mut Vec<Vec<char>>, data: &Vec<String>) {
-    for i in 0..BYTES {
+fn corrupt_map(map: &mut Vec<Vec<char>>, data: &Vec<String>, bytes: usize) {
+    for i in 0..bytes {
         let mut iter = data[i].split(",");
         let x: usize = iter.next().unwrap().trim().parse().unwrap();
         let y: usize = iter.next().unwrap().trim().parse().unwrap();

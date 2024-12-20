@@ -1,3 +1,4 @@
+use std::collections::{HashMap, VecDeque};
 use std::error::Error;
 use advent_tools::fetch_data;
 use itertools::Itertools;
@@ -17,12 +18,9 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
     let desired_designs = get_designs(&data);
     let max_pattern_len = patterns.iter().map(|s| s.len()).max().unwrap() as usize;
 
-    let res = desired_designs.iter()
-        .filter(|design| {
-            println!("Checking design: {}", design);
-            is_possible(&patterns_trie, design, max_pattern_len)
-        })
-        .count();
+    let res: i64 = desired_designs.iter()
+        .map(|design| calculate_possible(&patterns_trie, design))
+        .sum();
 
     let duration = start.elapsed();
     println!("Result: {}, Execution time: {:?}", res, duration);
@@ -30,26 +28,36 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn build_trie(patterns: &Vec<String>) -> Trie<u8> {
-    Trie::from_iter(patterns.iter().map(|s| s.as_str()))
-}
-
-fn is_possible(patterns: &Trie<u8>, design: &str, max_pattern_len: usize) -> bool {
-    if design.is_empty() {
-        return true;
-    }
-    // let matching_prefixes: Vec<String> = patterns.common_prefix_search(design).collect();
-    for i in 1..max_pattern_len + 1 {
-        if i > design.len() {
+fn calculate_possible(patterns: &Trie<u8>, design: &str) -> i64 {
+    let mut result_map: HashMap<&str, i64> = HashMap::new();
+    let mut tasks: VecDeque<(usize)> = VecDeque::new();
+    tasks.push_back((0));
+    while let (Some(task)) = tasks.pop_front() {
+        let (position) = task;
+        if position > design.len() {
             break;
         }
-        let possible_pattern = &design[design.len() - i..];
-        let pattern_match = patterns.exact_match(possible_pattern);
-        if pattern_match && is_possible(patterns, &design[..design.len()-i], max_pattern_len) {
-            return true;
+        let current_design = &design[design.len() - position..];
+        if current_design.is_empty() {
+            result_map.insert(current_design, 1);
+        } else {
+            let matching_prefixes: Vec<String> = patterns.common_prefix_search(current_design).collect();
+            let mut possible_patterns = 0;
+            for matching_prefix in matching_prefixes {
+                let remaining_design = &design[design.len() - (position - matching_prefix.len())..];
+                if let Some(count) = result_map.get(remaining_design) {
+                    possible_patterns += count;
+                }
+            }
+            result_map.insert(current_design, possible_patterns);
         }
+        tasks.push_back((position + 1));
     }
-    false
+    *result_map.get(design).unwrap_or(&0)
+}
+
+fn build_trie(patterns: &Vec<String>) -> Trie<u8> {
+    Trie::from_iter(patterns.iter().map(|s| s.as_str()))
 }
 
 fn get_designs(data: &Vec<String>) -> Vec<String> {

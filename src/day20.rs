@@ -27,7 +27,7 @@ fn find_cheats(map: &Vec<Vec<char>>, path_map: &Vec<Vec<i32>>, min_save: i32) ->
     tasks.push_back((0, start_position));
     let mut sum = 0;
     while let (Some(task)) = tasks.pop_front() {
-        let ( expected_value, (i, j)) = task;
+        let (expected_value, (i, j)) = task;
         let current_time = path_map[i][j];
         if current_time != expected_value {
             continue;
@@ -42,27 +42,24 @@ fn find_cheats(map: &Vec<Vec<char>>, path_map: &Vec<Vec<i32>>, min_save: i32) ->
 }
 
 fn find_good_cheated_locations(path_map: &Vec<Vec<i32>>, (i, j): (usize, usize), min_save: i32) -> i32 {
-    let mut cheated_locations = vec![
-        (i + 2, j), (i, j + 2),
-        (i - 1, j - 1), (i - 1, j + 1), (i + 1, j - 1), (i + 1, j + 1),
-    ];
-    if i >= 2 {
-        cheated_locations.push((i - 2, j));
-    }
-    if j >= 2 {
-        cheated_locations.push((i, j - 2));
+    let mut cheated_locations: Vec<(i32, i32)> = Vec::new();
+    for k in -20i32..20 + 1 {
+        for l in -20 + k.abs()..20 - k.abs() + 1 {
+            cheated_locations.push((i as i32 + k, j as i32 + l));
+        }
     }
     let mut sum = 0;
     let current_time = path_map[i][j];
-    for (i, j) in cheated_locations.iter() {
-        if *i >= path_map.len() || *j >= path_map[0].len() {
+    for (cheat_i, cheat_j) in cheated_locations.iter() {
+        if *cheat_i < 0 || *cheat_j < 0 || *cheat_i >= path_map.len() as i32 || *cheat_j >= path_map[0].len() as i32 {
             continue;
         }
-        let time = path_map[*i][*j];
+        let time = path_map[*cheat_i as usize][*cheat_j as usize];
         if time == i32::MAX {
             continue;
         }
-        if time - current_time - 2 >= min_save {
+        let cheat_time = (i as i32 - *cheat_i).abs() + (j as i32 - *cheat_j).abs();
+        if time - current_time - cheat_time >= min_save {
             sum += 1;
         }
     }

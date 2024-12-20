@@ -30,28 +30,21 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
 
 fn calculate_possible(patterns: &Trie<u8>, design: &str) -> i64 {
     let mut result_map: HashMap<&str, i64> = HashMap::new();
-    let mut tasks: VecDeque<(usize)> = VecDeque::new();
-    tasks.push_back((0));
-    while let (Some(task)) = tasks.pop_front() {
-        let (position) = task;
-        if position > design.len() {
-            break;
-        }
+    for position in 0..design.len() + 1 {
         let current_design = &design[design.len() - position..];
         if current_design.is_empty() {
             result_map.insert(current_design, 1);
-        } else {
-            let matching_prefixes: Vec<String> = patterns.common_prefix_search(current_design).collect();
-            let mut possible_patterns = 0;
-            for matching_prefix in matching_prefixes {
-                let remaining_design = &design[design.len() - (position - matching_prefix.len())..];
-                if let Some(count) = result_map.get(remaining_design) {
-                    possible_patterns += count;
-                }
-            }
-            result_map.insert(current_design, possible_patterns);
+            continue
         }
-        tasks.push_back((position + 1));
+        let matching_prefixes: Vec<String> = patterns.common_prefix_search(current_design).collect();
+        let mut possible_patterns = 0;
+        for matching_prefix in matching_prefixes {
+            let remaining_design = &design[design.len() - (position - matching_prefix.len())..];
+            if let Some(count) = result_map.get(remaining_design) {
+                possible_patterns += count;
+            }
+        }
+        result_map.insert(current_design, possible_patterns);
     }
     *result_map.get(design).unwrap_or(&0)
 }

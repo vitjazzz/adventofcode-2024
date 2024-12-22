@@ -4,6 +4,8 @@ use advent_tools::fetch_data;
 use regex::Regex;
 use tokio::time::Instant;
 
+const RECURSION_LEVEL: i32 = 25;
+
 pub async fn execute() -> Result<(), Box<dyn Error>> {
     let url = "https://adventofcode.com/2024/day/21/input";
     let data = fetch_data(url).await?;
@@ -16,11 +18,12 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
     let mut score: i64 = 0;
 
     let internal_shortest_path_map = build_internal_shortest_path_map(&robot_panel);
+    let full_internal_shortest_path_map = build_full_internal_shortest_path_map(&internal_shortest_path_map);
 
     let mut shortest_path_len_map: HashMap<(char, char, i32), i64> = HashMap::new();
     for code in codes {
         let code_paths = vec![code.clone()];
-        let shortest_path_len = search_shortest_path_len(&code_paths, &code_panel, &mut shortest_path_len_map, &internal_shortest_path_map, 0);
+        let shortest_path_len = search_shortest_path_len(&code_paths, &code_panel, &mut shortest_path_len_map, &internal_shortest_path_map, &full_internal_shortest_path_map, 0);
         let numeric_part = get_number(&code);
         println!("{:?}: numeric_part: {}, length: {}", code, numeric_part, shortest_path_len);
         score += numeric_part * shortest_path_len;
@@ -36,15 +39,12 @@ fn build_internal_shortest_path_map(robot_panel: &Vec<Vec<char>>) -> HashMap<(ch
     let mut internal_shortest_path_map: HashMap<(char, char), Vec<char>> = HashMap::new();
     for from in vec!['<', 'v', '>', '^', 'A'] {
         for to in vec!['<', 'v', '>', '^', 'A'] {
-            if from == to {
-                continue;
-            }
             let paths = find_multiple_shortest_paths(from, to, robot_panel);
 
             let mut shortest_path_len = i64::MAX;
             let mut real_shortest_path = paths[0].clone();
             for path in paths {
-                let tmp = search_shortest_path_len(&vec![path.clone()], &robot_panel, &mut HashMap::new(), &HashMap::new(), 1);
+                let tmp = search_shortest_path_len(&vec![path.clone()], &robot_panel, &mut HashMap::new(), &HashMap::new(), &HashMap::new(), 1);
                 if tmp < shortest_path_len {
                     real_shortest_path = path.clone();
                     shortest_path_len = tmp;
@@ -56,12 +56,36 @@ fn build_internal_shortest_path_map(robot_panel: &Vec<Vec<char>>) -> HashMap<(ch
     internal_shortest_path_map
 }
 
+fn build_full_internal_shortest_path_map(internal_shortest_path_map: &HashMap<(char, char), Vec<char>>)
+                                         -> HashMap<(char, char, i32), i64> {
+    let mut full_internal_shortest_path_map: HashMap<(char, char, i32), i64> = HashMap::new();
+    for recursion in (1..=RECURSION_LEVEL).rev() {
+        for from in vec!['<', 'v', '>', '^', 'A'] {
+            for to in vec!['<', 'v', '>', '^', 'A'] {
+                let shortest_path = internal_shortest_path_map.get(&(from, to)).unwrap();
+                let mut shortest_path_len = 0;
+                for i in 0..shortest_path.len() {
+                    let start_code = if i == 0 { 'A' } else { shortest_path[i - 1] };
+                    let final_code = shortest_path[i];
+                    shortest_path_len += full_internal_shortest_path_map
+                        .get(&(start_code, final_code, recursion + 1))
+                        .unwrap_or(&1);
+                }
+                full_internal_shortest_path_map.insert((from, to, recursion), shortest_path_len);
+            }
+        }
+    }
+
+    full_internal_shortest_path_map
+}
+
 fn search_shortest_path_len(expected_codes: &Vec<Vec<char>>,
                             panel: &Vec<Vec<char>>,
                             shortest_path_len_map: &mut HashMap<(char, char, i32), i64>,
                             internal_shortest_path_map: &HashMap<(char, char), Vec<char>>,
+                            full_internal_shortest_path_map: &HashMap<(char, char, i32), i64>,
                             recursion_level: i32) -> i64 {
-    if recursion_level > 2 {
+    if recursion_level > RECURSION_LEVEL {
         return expected_codes[0].len() as i64;
     }
     let robot_panel = robot_panel();
@@ -74,13 +98,18 @@ fn search_shortest_path_len(expected_codes: &Vec<Vec<char>>,
             let final_code = code[i];
             if let Some(&path_len) = shortest_path_len_map.get(&(start_code, final_code, recursion_level)) {
                 current_shortest_path_len += path_len;
+            } else if let Some(&internal_shortest_path_len) = full_internal_shortest_path_map.get(&(start_code, final_code, recursion_level)) {
+                shortest_path_len_map.insert((start_code, final_code, recursion_level), internal_shortest_path_len);
+                current_shortest_path_len += internal_shortest_path_len;
             } else if let Some(path) = internal_shortest_path_map.get(&(start_code, final_code)) {
-                let internal_shortest_path_len = search_shortest_path_len(&vec![path.clone()], &robot_panel, shortest_path_len_map, internal_shortest_path_map, recursion_level + 1);
+                let internal_shortest_path_len = search_shortest_path_len(&vec![path.clone()], &robot_panel, shortest_path_len_map,
+                                                                          internal_shortest_path_map, full_internal_shortest_path_map, recursion_level + 1);
                 shortest_path_len_map.insert((start_code, final_code, recursion_level), internal_shortest_path_len);
                 current_shortest_path_len += internal_shortest_path_len;
             } else {
                 let paths = find_multiple_shortest_paths(start_code, final_code, panel);
-                let internal_shortest_path_len = search_shortest_path_len(&paths, &robot_panel, shortest_path_len_map, internal_shortest_path_map, recursion_level + 1);
+                let internal_shortest_path_len = search_shortest_path_len(&paths, &robot_panel, shortest_path_len_map,
+                                                                          internal_shortest_path_map, full_internal_shortest_path_map, recursion_level + 1);
                 shortest_path_len_map.insert((start_code, final_code, recursion_level), internal_shortest_path_len);
                 current_shortest_path_len += internal_shortest_path_len;
             }
@@ -117,8 +146,7 @@ fn find_multiple_shortest_paths(start_code: char, final_code: char, panel: &Vec<
             path_panel[i][j] = current_paths.clone();
         }
         if current_element == final_code {
-            return continue;;
-            ;
+            continue;
         }
         tasks.push_back((add_and_clone(&current_paths, '>'), (i, j + 1)));
         tasks.push_back((add_and_clone(&current_paths, 'v'), (i + 1, j)));

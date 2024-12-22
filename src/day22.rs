@@ -1,12 +1,9 @@
+use std::collections::HashMap;
 use std::error::Error;
 use advent_tools::fetch_data;
 use tokio::time::Instant;
 
 const PRUNE_AND_NUMBER: i64 = 0b111111111111111111111111;
-const PRUNE_NUMBER: i64 = 0b1000000000000000000000000;
-const DIVIDER_32: i64 = 0b100000;
-const MULTIPLIER_64: i64 = 0b1000000;
-const MULTIPLIER_2048: i64 = 0b100000000000;
 pub async fn execute() -> Result<(), Box<dyn Error>> {
     let url = "https://adventofcode.com/2024/day/22/input";
     let data = fetch_data(url).await?;
@@ -16,15 +13,12 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
     let start = Instant::now();
 
     let starting_numbers = get_starting_numbers(&data);
+    let mut secret_numbers: HashMap<i64, Vec<i64>> = HashMap::new();
     
-    let mut res = 0;
     for number in starting_numbers {
-        let mut secret_number = number;
-        for _ in 0..2000 {
-            secret_number = evolve(secret_number);
-        }
-        res += secret_number;
+       secret_numbers.insert(number, evolve_n_times(number, 2000));
     }
+    let res: i64 = secret_numbers.iter().map(|(k, v)| v[2000]).sum();
 
     let duration = start.elapsed();
     println!("Result: {}, Execution time: {:?}", res, duration);
@@ -32,7 +26,15 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-
+fn evolve_n_times(secret_number: i64, times: i32) -> Vec<i64> {
+    let mut res = vec![];
+    let mut secret_number = secret_number;
+    for _ in 0..=times {
+        res.push(secret_number);
+        secret_number = evolve(secret_number);
+    }
+    res
+}
 
 fn evolve(secret_number: i64) -> i64 {
     let number = secret_number << 6;

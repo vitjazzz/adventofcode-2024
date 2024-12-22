@@ -13,17 +13,17 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
     let codes = get_codes(&data);
     let code_panel = code_panel();
     let robot_panel = robot_panel();
-    let mut score = 0;
+    let mut score: i64 = 0;
 
-    let mut shortest_path_map: HashMap<(char, char, i32), Vec<char>> = HashMap::new();
+    let internal_shortest_path_map = build_internal_shortest_path_map(&robot_panel);
 
+    let mut shortest_path_len_map: HashMap<(char, char, i32), i64> = HashMap::new();
     for code in codes {
         let code_paths = vec![code.clone()];
-        let shortest_paths = search_shortest_paths(&code_paths, &code_panel, &mut shortest_path_map, 0);
+        let shortest_path_len = search_shortest_path_len(&code_paths, &code_panel, &mut shortest_path_len_map, &internal_shortest_path_map, 0);
         let numeric_part = get_number(&code);
-        println!("{:?}: {}, numeric_part: {}, length: {}", code, shortest_paths[0].iter().map(|x| x.to_string()).collect::<Vec<_>>().join(""),
-                 numeric_part, shortest_paths[0].len());
-        score += numeric_part * shortest_paths[0].len() as i32;
+        println!("{:?}: numeric_part: {}, length: {}", code, numeric_part, shortest_path_len);
+        score += numeric_part * shortest_path_len;
     }
 
     let duration = start.elapsed();
@@ -32,42 +32,63 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn search_shortest_paths(expected_codes: &Vec<Vec<char>>,
-                         panel: &Vec<Vec<char>>,
-                         shortest_path_map: &mut HashMap<(char, char, i32), Vec<char>>,
-                         recursion_level: i32) -> Vec<Vec<char>> {
+fn build_internal_shortest_path_map(robot_panel: &Vec<Vec<char>>) -> HashMap<(char, char), Vec<char>> {
+    let mut internal_shortest_path_map: HashMap<(char, char), Vec<char>> = HashMap::new();
+    for from in vec!['<', 'v', '>', '^', 'A'] {
+        for to in vec!['<', 'v', '>', '^', 'A'] {
+            if from == to {
+                continue;
+            }
+            let paths = find_multiple_shortest_paths(from, to, robot_panel);
+
+            let mut shortest_path_len = i64::MAX;
+            let mut real_shortest_path = paths[0].clone();
+            for path in paths {
+                let tmp = search_shortest_path_len(&vec![path.clone()], &robot_panel, &mut HashMap::new(), &HashMap::new(), 1);
+                if tmp < shortest_path_len {
+                    real_shortest_path = path.clone();
+                    shortest_path_len = tmp;
+                }
+            }
+            internal_shortest_path_map.insert((from, to), real_shortest_path);
+        }
+    }
+    internal_shortest_path_map
+}
+
+fn search_shortest_path_len(expected_codes: &Vec<Vec<char>>,
+                            panel: &Vec<Vec<char>>,
+                            shortest_path_len_map: &mut HashMap<(char, char, i32), i64>,
+                            internal_shortest_path_map: &HashMap<(char, char), Vec<char>>,
+                            recursion_level: i32) -> i64 {
     if recursion_level > 2 {
-        return expected_codes.clone();
+        return expected_codes[0].len() as i64;
     }
     let robot_panel = robot_panel();
 
-    let mut shortest_paths = Vec::new();
+    let mut shortest_path_len = i64::MAX;
     for code in expected_codes {
-        let mut shortest_path: Vec<char> = Vec::new();
+        let mut current_shortest_path_len = 0;
         for i in 0..code.len() {
             let start_code = if i == 0 { 'A' } else { code[i - 1] };
             let final_code = code[i];
-            if let Some(path) = shortest_path_map.get(&(start_code, final_code, recursion_level)) {
-                shortest_path.extend(path.clone());
-                continue;
+            if let Some(&path_len) = shortest_path_len_map.get(&(start_code, final_code, recursion_level)) {
+                current_shortest_path_len += path_len;
+            } else if let Some(path) = internal_shortest_path_map.get(&(start_code, final_code)) {
+                let internal_shortest_path_len = search_shortest_path_len(&vec![path.clone()], &robot_panel, shortest_path_len_map, internal_shortest_path_map, recursion_level + 1);
+                shortest_path_len_map.insert((start_code, final_code, recursion_level), internal_shortest_path_len);
+                current_shortest_path_len += internal_shortest_path_len;
+            } else {
+                let paths = find_multiple_shortest_paths(start_code, final_code, panel);
+                let internal_shortest_path_len = search_shortest_path_len(&paths, &robot_panel, shortest_path_len_map, internal_shortest_path_map, recursion_level + 1);
+                shortest_path_len_map.insert((start_code, final_code, recursion_level), internal_shortest_path_len);
+                current_shortest_path_len += internal_shortest_path_len;
             }
-            let paths = find_multiple_shortest_paths(start_code, final_code, panel);
-            // add 'A' to the end of all paths
-            let paths = paths.iter().map(|x| {
-                let mut path = x.clone();
-                path.push('A');
-                path
-            }).collect::<Vec<_>>();
-            let internal_shortest_paths = search_shortest_paths(&paths, &robot_panel, shortest_path_map, recursion_level + 1);
-            shortest_path_map.insert((start_code, final_code, recursion_level), internal_shortest_paths[0].clone());
-            shortest_path.extend(internal_shortest_paths[0].clone());
         }
-        shortest_paths.push(shortest_path);
+        shortest_path_len = shortest_path_len.min(current_shortest_path_len);
     }
-    let shortest_path_len = shortest_paths.iter().map(|x| x.len()).min().unwrap();
-    let shortest_paths = shortest_paths.iter().filter(|x| x.len() == shortest_path_len).map(|x| x.clone()).collect::<Vec<_>>();
 
-    shortest_paths
+    shortest_path_len
 }
 
 fn find_multiple_shortest_paths(start_code: char, final_code: char, panel: &Vec<Vec<char>>) -> Vec<Vec<char>> {
@@ -97,6 +118,7 @@ fn find_multiple_shortest_paths(start_code: char, final_code: char, panel: &Vec<
         }
         if current_element == final_code {
             return continue;;
+            ;
         }
         tasks.push_back((add_and_clone(&current_paths, '>'), (i, j + 1)));
         tasks.push_back((add_and_clone(&current_paths, 'v'), (i + 1, j)));
@@ -104,7 +126,14 @@ fn find_multiple_shortest_paths(start_code: char, final_code: char, panel: &Vec<
         tasks.push_back((add_and_clone(&current_paths, '^'), (i - 1, j)));
     }
     let final_position = get_position(&panel, final_code);
-    path_panel[final_position.0][final_position.1].clone()
+    let paths = path_panel[final_position.0][final_position.1].clone();
+    let paths = paths.iter().map(|x| {
+        let mut path = x.clone();
+        path.push('A');
+        path
+    }).collect::<Vec<_>>();
+
+    paths
 }
 
 fn add_and_clone(paths: &Vec<Vec<char>>, c: char) -> Vec<Vec<char>> {
@@ -160,11 +189,11 @@ fn get_codes(data: &Vec<String>) -> Vec<Vec<char>> {
         .collect()
 }
 
-fn get_number(code: &Vec<char>) -> i32 {
+fn get_number(code: &Vec<char>) -> i64 {
     let re = Regex::new(r"^0*(\d+)").unwrap();
     let code = code.iter().map(|x| x.to_string()).collect::<Vec<_>>().join("");
     if let Some(caps) = re.captures(&code) {
-        *&caps[1].parse::<i32>().unwrap()
+        *&caps[1].parse::<i64>().unwrap()
     } else {
         panic!("Couldn't parse")
     }

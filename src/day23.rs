@@ -6,17 +6,14 @@ use tokio::time::Instant;
 pub async fn execute() -> Result<(), Box<dyn Error>> {
     let url = "https://adventofcode.com/2024/day/23/input";
     let data = fetch_data(url).await?;
-    // let data = test_data();
+    let data = test_data();
 
     let start = Instant::now();
 
     let pairs = get_pairs(&data);
     let links = get_links(&pairs);
 
-    let res = find_sets(links);
-    let res: usize = res.iter()
-        .filter(|&set| set[0].starts_with('t') || set[1].starts_with('t') || set[2].starts_with('t'))
-        .count();
+    let res = find_max_group(links).join(",");
 
     let duration = start.elapsed();
     println!("");
@@ -25,21 +22,35 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn find_sets(links: HashMap<String, HashSet<String>>) -> HashSet<Vec<String>> {
-    let mut sets: HashSet<Vec<String>> = HashSet::new();
+fn find_max_group(links: HashMap<String, HashSet<String>>) -> Vec<String> {
+    let mut max_group = vec![];
     for (from_node, from_neighbours) in links.iter() {
-        for to_node in from_neighbours {
-            let to_neighbours = links.get(to_node).unwrap();
-            let intersection: HashSet<String> = from_neighbours.intersection(to_neighbours).cloned().collect();
-            for intersected_node in intersection {
-                let mut set = vec![from_node.clone(), to_node.clone(), intersected_node.clone()];
-                set.sort();
-                sets.insert(set);
-            }
+        let group = find_max_group_recursive(&links, vec![from_node.clone()], from_neighbours);
+        if max_group.len() < group.len() {
+            max_group = group;
         }
     }
+    max_group.sort();
+    max_group
+}
 
-    sets
+fn find_max_group_recursive(links: &HashMap<String, HashSet<String>>, nodes: Vec<String>, current_intersection: &HashSet<String>) -> Vec<String> {
+    let mut max_group = vec![];
+    for to_node in current_intersection {
+        let to_neighbours = links.get(to_node).unwrap();
+        let intersection: HashSet<String> = current_intersection.intersection(to_neighbours).cloned().collect();
+        let mut nodes = nodes.clone();
+        nodes.push(to_node.clone());
+        let group = if !intersection.is_empty() {
+            find_max_group_recursive(links, nodes, &intersection)
+        } else {
+            nodes
+        };
+        if max_group.len() < group.len() {
+            max_group = group;
+        }
+    }
+    max_group
 }
 
 fn get_links(pairs: &Vec<(String, String)>) -> HashMap<String, HashSet<String>> {

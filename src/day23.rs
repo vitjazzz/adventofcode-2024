@@ -25,7 +25,7 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn find_sets(links: HashMap<String, Vec<String>>) -> HashSet<Vec<String>> {
+fn find_sets(links: HashMap<String, HashSet<String>>) -> HashSet<Vec<String>> {
     let mut sets: HashSet<Vec<String>> = HashSet::new();
     let mut tasks: VecDeque<(Vec<&String>, &String)> = VecDeque::new();
     for node in links.keys() {
@@ -58,15 +58,15 @@ fn find_sets(links: HashMap<String, Vec<String>>) -> HashSet<Vec<String>> {
     sets
 }
 
-fn get_links(pairs: &Vec<(String, String)>) -> HashMap<String, Vec<String>> {
-    let mut res: HashMap<String, Vec<String>> = HashMap::new();
+fn get_links(pairs: &Vec<(String, String)>) -> HashMap<String, HashSet<String>> {
+    let mut res: HashMap<String, HashSet<String>> = HashMap::new();
     for (a, b) in pairs {
         res.entry(a.clone())
-            .and_modify(|v| v.push(b.clone()))
-            .or_insert(vec![b.clone()]);
+            .or_insert_with(HashSet::new)
+            .insert(b.clone());
         res.entry(b.clone())
-            .and_modify(|v| v.push(a.clone()))
-            .or_insert(vec![a.clone()]);
+            .or_insert_with(HashSet::new)
+            .insert(a.clone());
     }
     res
 }

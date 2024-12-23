@@ -27,31 +27,15 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
 
 fn find_sets(links: HashMap<String, HashSet<String>>) -> HashSet<Vec<String>> {
     let mut sets: HashSet<Vec<String>> = HashSet::new();
-    let mut tasks: VecDeque<(Vec<&String>, &String)> = VecDeque::new();
-    for node in links.keys() {
-        tasks.push_back((vec![], node));
-    }
-    while let Some((path, node)) = tasks.pop_front() {
-        if path.len() == 3 {
-            if path[path.len() - 3] == node {
-                let mut set = vec![];
-                for i in path.len() - 3..path.len() {
-                    set.push(path[i].clone());
-                }
+    for (from_node, from_neighbours) in links.iter() {
+        for to_node in from_neighbours {
+            let to_neighbours = links.get(to_node).unwrap();
+            let intersection: HashSet<String> = from_neighbours.intersection(to_neighbours).cloned().collect();
+            for intersected_node in intersection {
+                let mut set = vec![from_node.clone(), to_node.clone(), intersected_node.clone()];
                 set.sort();
                 sets.insert(set);
             }
-            continue
-        }
-        if path.contains(&node) {
-            continue;
-        }
-
-        let node_links = links.get(node).unwrap();
-        for neighbour in node_links {
-            let mut new_path = path.clone();
-            new_path.push(node);
-            tasks.push_back((new_path, neighbour));
         }
     }
 

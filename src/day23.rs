@@ -6,7 +6,7 @@ use tokio::time::Instant;
 pub async fn execute() -> Result<(), Box<dyn Error>> {
     let url = "https://adventofcode.com/2024/day/23/input";
     let data = fetch_data(url).await?;
-    let data = test_data();
+    // let data = test_data();
 
     let start = Instant::now();
 
@@ -24,8 +24,9 @@ pub async fn execute() -> Result<(), Box<dyn Error>> {
 
 fn find_max_group(links: HashMap<String, HashSet<String>>) -> Vec<String> {
     let mut max_group = vec![];
+    let mut stored_map: HashMap<String, Vec<String>> = HashMap::new();
     for (from_node, from_neighbours) in links.iter() {
-        let group = find_max_group_recursive(&links, vec![from_node.clone()], from_neighbours);
+        let group = find_max_group_recursive(&links, vec![from_node.clone()], from_neighbours, &mut stored_map);
         if max_group.len() < group.len() {
             max_group = group;
         }
@@ -34,18 +35,28 @@ fn find_max_group(links: HashMap<String, HashSet<String>>) -> Vec<String> {
     max_group
 }
 
-fn find_max_group_recursive(links: &HashMap<String, HashSet<String>>, nodes: Vec<String>, current_intersection: &HashSet<String>) -> Vec<String> {
+fn find_max_group_recursive(links: &HashMap<String, HashSet<String>>,
+                            nodes: Vec<String>,
+                            current_intersection: &HashSet<String>,
+                            stored_map: &mut HashMap<String, Vec<String>>) -> Vec<String> {
     let mut max_group = vec![];
     for to_node in current_intersection {
-        let to_neighbours = links.get(to_node).unwrap();
-        let intersection: HashSet<String> = current_intersection.intersection(to_neighbours).cloned().collect();
         let mut nodes = nodes.clone();
         nodes.push(to_node.clone());
+        nodes.sort();
+        let key = nodes.join(",");
+        if stored_map.contains_key(&key) {
+            continue;
+        }
+
+        let to_neighbours = links.get(to_node).unwrap();
+        let intersection: HashSet<String> = current_intersection.intersection(to_neighbours).cloned().collect();
         let group = if !intersection.is_empty() {
-            find_max_group_recursive(links, nodes, &intersection)
+            find_max_group_recursive(links, nodes, &intersection, stored_map)
         } else {
             nodes
         };
+        stored_map.insert(key, group.clone());
         if max_group.len() < group.len() {
             max_group = group;
         }
